@@ -1,0 +1,39 @@
+services:
+
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: viaguardian_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: viaguardian
+      POSTGRES_USER: viaguardian
+      POSTGRES_PASSWORD: viaguardian_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U viaguardian -d viaguardian"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: viaguardian_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://viaguardian:viaguardian_secret@db:5432/viaguardian
+      API_SECRET_KEY: change-me-in-production
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:

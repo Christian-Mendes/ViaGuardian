@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---------- EXCLUSÕES PERSONALIZADAS ----------
+
+# Variáveis de Ambiente (Segurança)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Python (Backend)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.pytest_cache/
+
+# Dependências Mobile / Expo (se houver)
+.expo/
+android/app/build/
+ios/Pods/
+ios/build/

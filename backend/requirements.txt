@@ -1,0 +1,17 @@
+# ── FastAPI core ───────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# ── ORM / Banco de Dados ───────────────────────────────────
+sqlalchemy==2.0.36
+geoalchemy2==0.15.2
+asyncpg==0.30.0          # driver assíncrono PostgreSQL
+alembic==1.14.0          # migrações
+
+# ── Validação ─────────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# ── Utilitários ───────────────────────────────────────────
+python-dotenv==1.0.1
+httpx==0.28.1             # cliente HTTP assíncrono (testes e integrações)
