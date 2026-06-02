@@ -29,8 +29,7 @@ import math
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from geoalchemy2.functions import ST_DWithin, ST_GeomFromText
-from sqlalchemy import select, update
+from sqlalchemy import func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -110,15 +109,15 @@ async def _upsert_incident(
             Incident.anomaly_class == payload.anomaly_class,
             Incident.event_timestamp_utc >= cutoff_time,
             Incident.status != IncidentStatus.REJECTED,
-            ST_DWithin(
-                Incident.location.cast("geography"),
-                ST_GeomFromText(point_wkt, 4326).cast("geography"),
+            func.ST_DWithin(
+                func.ST_GeogFromWKB(Incident.location),
+                func.ST_GeogFromText(literal(point_wkt)),
                 settings.DEDUP_RADIUS_METERS,
             ),
         )
         .order_by(Incident.event_timestamp_utc.desc())
         .limit(1)
-        .with_for_update(skip_locked=True)  # evita race condition em alta concorrência
+        .with_for_update(skip_locked=True)
     )
 
     result = await db.execute(dedup_query)
@@ -144,7 +143,7 @@ async def _upsert_incident(
         device_fingerprint=payload.device_fingerprint,
         anomaly_class=payload.anomaly_class,
         confidence_score=payload.confidence_score,
-        location=ST_GeomFromText(point_wkt, 4326),
+        location=func.ST_GeomFromText(point_wkt, 4326),
         latitude=payload.geo_location.lat,
         longitude=payload.geo_location.lon,
         event_timestamp_utc=payload.event_timestamp_utc,
