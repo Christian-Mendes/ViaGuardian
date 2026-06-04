@@ -8,26 +8,32 @@ const INITIAL_MESSAGES = [
 ]
 
 const SUGGESTIONS = [
-  'Quais corredores têm maior IRV agora?',
-  'Explique a fórmula do IRV',
-  'Como interpretar a confiança da IA?',
-  'Quais câmeras estão offline?',
+  'Quais corredores têm maior IRV?',
+  'Status do SLA de resposta',
+  'Análise da fila de triagem',
+  'Status das câmeras CFTV',
 ]
 
 const AUTO_REPLIES = {
+  infraestrutura: 'Análise da infraestrutura viária em tempo real: 17 km de vias monitoradas, 3 pontos críticos requerem intervenção imediata (Santo Amaro, Av. dos Bandeirantes, Radial Leste). Priorização: O.S. de sinalização horizontal.',
+  sla: 'O **SLA de Resposta Operacional** atual está em **7.2 minutos** (Meta: <8 min). Taxa de aprovação na triagem: **71%**. Correção de falsos positivos pelo analista: **14%**. Performance dentro do esperado.',
+  triage: 'Fila de triagem atual: **4 incidentes pendentes**. Prioridade máxima: **INC-2403** (IRV 91 - Sinalização Apagada, Santo Amaro). Recomendação: Aprovar para abertura de O.S. de manutenção preventiva.',
   irv: 'O **IRV (Índice de Risco Viário)** é calculado por: **IRV = (Wₐ × D) + (Wₕ × S)**, onde Wₐ e Wₕ são pesos de anomalia e histórico, D é o volume de detecções validadas, e S é a incidência de sinistros no Infosiga SP.',
   corredor: 'Com base nos dados atuais, o **Eixo Sul (IRV 91)** e o **Corredor Norte (IRV 84)** apresentam maior criticidade. Recomendo priorizar os eventos INC-2403 e INC-2401 na triagem.',
-  confiança: 'A confiança indica a certeza do modelo YOLOv8-Nano na detecção. Acima de 85% → aprovação recomendada. Entre 70–85% → requer revisão humana. Abaixo de 70% → alta probabilidade de falso positivo.',
-  câmera: 'A câmera **CAM-005** (Santo Amaro x João Dias) está **offline**. A **CAM-003** (Av. dos Bandeirantes) apresenta alta latência (220ms). Recomendo acionar a equipe de manutenção.',
+  confiança: 'A confiança indica a certeza do modelo YOLOv8-Nano na detecção. **Acima de 85%**: aprovação recomendada. **Entre 70–85%**: requer revisão humana. **Abaixo de 70%**: alta probabilidade de falso positivo.',
+  câmera: 'Status CFTV: **CAM-005** (Santo Amaro) está **offline** há 42 minutos. **CAM-003** (Av. dos Bandeirantes) apresenta latência elevada (220ms). Acionamento da equipe de infraestrutura recomendado.',
 }
 
 function autoReply(text) {
   const lower = text.toLowerCase()
+  if (lower.includes('infraestrutura') || lower.includes('via')) return AUTO_REPLIES.infraestrutura
+  if (lower.includes('sla') || lower.includes('resposta') || lower.includes('performance')) return AUTO_REPLIES.sla
+  if (lower.includes('triage') || lower.includes('triagem') || lower.includes('fila')) return AUTO_REPLIES.triage
   if (lower.includes('irv') || lower.includes('fórmula') || lower.includes('formula')) return AUTO_REPLIES.irv
   if (lower.includes('corredor') || lower.includes('risco')) return AUTO_REPLIES.corredor
   if (lower.includes('confiança') || lower.includes('confianca') || lower.includes('ia')) return AUTO_REPLIES.confiança
   if (lower.includes('câmera') || lower.includes('camera') || lower.includes('offline') || lower.includes('cftv')) return AUTO_REPLIES.câmera
-  return 'Analisando os dados operacionais em tempo real. Para orientações específicas, consulte os painéis de Triagem ou CFTV.'
+  return 'Consulta registrada. Para análises específicas, utilize os painéis de **Dashboard**, **Triagem** ou **CFTV**. Posso auxiliar com IRV, SLA, status de câmeras ou priorização de corredores.'
 }
 
 function renderText(text) {
@@ -66,42 +72,43 @@ export function AiAgentWidget() {
 
   return (
     <>
-      {/* botão flutuante */}
+      {/* botão flutuante premium */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-2xl shadow-blue-900/40 transition-all hover:scale-105 hover:shadow-blue-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:shadow-blue-500/30 dark:hover:shadow-blue-500/50"
         aria-label="Abrir assistente de IA"
       >
         {open ? (
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
           </svg>
         )}
       </button>
 
-      {/* painel chat */}
+      {/* painel chat premium com glassmorphism */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 flex w-[360px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-          {/* header */}
-          <div className="flex items-center gap-3 border-b border-gray-100 bg-blue-600 px-4 py-3 dark:border-gray-800">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
-              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="fixed bottom-24 right-6 z-50 flex w-[380px] flex-col overflow-hidden rounded-2xl border border-gray-700/50 bg-gray-900/80 shadow-2xl shadow-blue-900/20 backdrop-blur-md dark:border-gray-700/50 dark:bg-gray-900/90 dark:shadow-blue-500/20">
+          {/* header premium */}
+          <div className="flex items-center gap-3 border-b border-gray-700/50 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 shadow-inner">
+              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Agente ViaGuardian IA</p>
-              <p className="text-[11px] text-blue-200">Assistente operacional de trânsito</p>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-white">Agente ViaGuardian IA</p>
+              <p className="text-xs text-blue-100">Assistência operacional em tempo real</p>
             </div>
+            <div className="flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
           </div>
 
-          {/* mensagens */}
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4" style={{ maxHeight: '340px' }}>
+          {/* mensagens com estilo premium */}
+          <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-gradient-to-b from-gray-900/40 to-gray-900/60 p-5" style={{ maxHeight: '380px' }}>
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -109,10 +116,10 @@ export function AiAgentWidget() {
               >
                 <div
                   className={[
-                    'max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed',
+                    'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg',
                     msg.role === 'user'
-                      ? 'rounded-br-sm bg-blue-600 text-white'
-                      : 'rounded-bl-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+                      ? 'rounded-br-sm bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-blue-900/40'
+                      : 'rounded-bl-sm border border-gray-700/60 bg-gray-800/90 text-gray-100 shadow-gray-900/60 backdrop-blur-sm',
                   ].join(' ')}
                 >
                   {renderText(msg.text)}
@@ -121,11 +128,11 @@ export function AiAgentWidget() {
             ))}
             {typing && (
               <div className="flex justify-start">
-                <div className="flex gap-1 rounded-2xl rounded-bl-sm bg-gray-100 px-4 py-3 dark:bg-gray-800">
-                  {[0, 0.2, 0.4].map((d, i) => (
+                <div className="flex gap-1.5 rounded-2xl rounded-bl-sm border border-gray-700/60 bg-gray-800/90 px-5 py-3 shadow-lg backdrop-blur-sm">
+                  {[0, 0.15, 0.3].map((d, i) => (
                     <span
                       key={i}
-                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+                      className="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]"
                       style={{ animationDelay: `${d}s` }}
                     />
                   ))}
@@ -135,15 +142,15 @@ export function AiAgentWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* sugestões */}
+          {/* sugestões com design premium */}
           {messages.length <= 1 && (
-            <div className="flex flex-wrap gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+            <div className="flex flex-wrap gap-2 border-t border-gray-700/50 bg-gray-900/60 px-5 py-4 backdrop-blur-sm">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => send(s)}
-                  className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] text-blue-700 transition hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                  className="rounded-full border border-blue-700/60 bg-blue-900/40 px-3.5 py-1.5 text-xs font-medium text-blue-300 shadow-sm transition-all hover:border-blue-600 hover:bg-blue-800/60 hover:text-blue-200 hover:shadow-md"
                 >
                   {s}
                 </button>
@@ -151,25 +158,25 @@ export function AiAgentWidget() {
             </div>
           )}
 
-          {/* input */}
-          <div className="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+          {/* input premium */}
+          <div className="border-t border-gray-700/50 bg-gray-900/60 px-4 py-4 backdrop-blur-sm">
             <form
               onSubmit={(e) => { e.preventDefault(); send(input) }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-3"
             >
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte ao assistente…"
-                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:ring-blue-900/40"
+                placeholder="Digite sua consulta operacional…"
+                className="flex-1 rounded-xl border border-gray-700/60 bg-gray-800/80 px-4 py-2.5 text-sm text-gray-100 placeholder:text-gray-500 shadow-inner transition-all focus:border-blue-600 focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
               />
               <button
                 type="submit"
                 disabled={!input.trim() || typing}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-40"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-900/40 transition-all hover:scale-105 hover:shadow-blue-900/60 disabled:opacity-40 disabled:hover:scale-100"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>
               </button>

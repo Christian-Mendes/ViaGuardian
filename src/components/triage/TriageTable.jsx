@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Circle, Tooltip as LeafletTooltip } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 
 function confidenceColor(v) {
   if (v >= 0.85) return 'bg-blue-600'
@@ -25,9 +27,9 @@ function StatusBadge({ status }) {
 function DetailPanel({ item, onDecision, isUpdating }) {
   if (!item) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-8 text-center backdrop-blur-sm">
         <svg
-          className="h-10 w-10 text-gray-300 dark:text-gray-600"
+          className="h-12 w-12 text-slate-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -36,124 +38,172 @@ function DetailPanel({ item, onDecision, isUpdating }) {
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+            d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"
           />
         </svg>
-        <p className="text-sm text-gray-400 dark:text-gray-500">
-          Selecione um evento na tabela para revisar detalhes e tomar decisão.
-        </p>
+        <div>
+          <p className="text-sm font-medium text-gray-300">
+            Nenhum evento selecionado
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Clique em um incidente na fila ao lado para revisar detalhes
+          </p>
+        </div>
       </div>
     )
   }
 
-  const bbox = item.bbox
+  // Validação de coordenadas
+  const hasValidCoords = item.lat && item.lon && 
+                         typeof item.lat === 'number' && 
+                         typeof item.lon === 'number' &&
+                         !isNaN(item.lat) && !isNaN(item.lon)
 
   return (
-    <div className="flex h-full flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      {/* header */}
+    <div className="flex h-full flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg">
+      {/* header premium */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-xs text-gray-400">{item.id}</p>
-          <h4 className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{item.category}</h4>
+          <p className="font-mono text-xs text-gray-500">{item.id}</p>
+          <h4 className="mt-1 text-base font-bold text-gray-100">{item.category}</h4>
         </div>
         <StatusBadge status={item.status} />
       </div>
 
-      {/* frame simulado com bounding box */}
-      <div className="relative aspect-video overflow-hidden rounded-lg bg-gray-900">
-        <div className="absolute inset-0 opacity-10">
-          {[15, 30, 45, 60, 75, 90].map((y) => (
-            <div
-              key={y}
-              className="absolute w-full border-t border-emerald-400/40"
-              style={{ top: `${y}%` }}
+      {/* Mini-mapa tático com círculo de deduplicação */}
+      {hasValidCoords ? (
+        <div className="relative h-64 overflow-hidden rounded-xl border border-slate-700 shadow-inner">
+          <MapContainer
+            key={`triage-map-${item.id}`}
+            center={[item.lat, item.lon]}
+            zoom={16}
+            scrollWheelZoom={false}
+            style={{ height: '100%', width: '100%', backgroundColor: '#0f172a' }}
+            zoomControl={false}
+            whenReady={(map) => {
+              setTimeout(() => map.target.invalidateSize(), 100)
+            }}
+          >
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; OpenStreetMap'
             />
-          ))}
-        </div>
-        <div className="absolute left-2 top-2 flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
-          <span className="font-mono text-[9px] text-white/60">ANOMALIA DETECTADA</span>
-        </div>
 
-        {/* bounding box */}
-        <div
-          className="absolute rounded border-2 border-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"
-          style={{
-            left: `${bbox.x}%`,
-            top: `${bbox.y}%`,
-            width: `${bbox.w}%`,
-            height: `${bbox.h}%`,
-          }}
-        >
-          <span className="absolute -top-5 left-0 whitespace-nowrap rounded bg-blue-500 px-1.5 py-0.5 font-mono text-[9px] text-white">
-            {bbox.label}
-          </span>
-        </div>
+            {/* Círculo vermelho representando área de deduplicação (12m de raio) */}
+            <Circle
+              center={[item.lat, item.lon]}
+              radius={12}
+              pathOptions={{
+                color: '#dc2626',
+                fillColor: '#dc2626',
+                fillOpacity: 0.25,
+                weight: 2,
+              }}
+            >
+              <LeafletTooltip permanent direction="top" className="font-mono text-xs">
+                Zona de Deduplicação (12m)
+              </LeafletTooltip>
+            </Circle>
+          </MapContainer>
 
-        <div className="absolute left-2 top-2 h-4 w-4 border-l-2 border-t-2 border-emerald-400/50" />
-        <div className="absolute right-2 top-2 h-4 w-4 border-r-2 border-t-2 border-emerald-400/50" />
-        <div className="absolute bottom-2 left-2 h-4 w-4 border-b-2 border-l-2 border-emerald-400/50" />
-        <div className="absolute bottom-2 right-2 h-4 w-4 border-b-2 border-r-2 border-emerald-400/50" />
-
-        <div className="absolute bottom-2 left-2 right-2 flex justify-between font-mono text-[9px] text-white/50">
-          <span>YOLOv8-Nano</span>
-          <span>{item.receivedAt}</span>
+          {/* Badge de tecnologia */}
+          <div className="absolute bottom-3 right-3 rounded-lg bg-slate-900/90 px-2.5 py-1 font-mono text-[10px] text-gray-400 shadow-md backdrop-blur-sm">
+            Edge AI · PostGIS
+          </div>
         </div>
+      ) : (
+        <div className="flex h-64 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/50">
+          <p className="text-sm text-gray-500">Coordenadas indisponíveis</p>
+        </div>
+      )}
+
+      {/* Prova Criptográfica - Recorrência (Privacy by Design) */}
+      <div className="rounded-xl border border-emerald-700/50 bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 p-4 shadow-inner">
+        <div className="mb-3 flex items-center gap-2">
+          <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+          </svg>
+          <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+            Validação Multi-Sensor
+          </p>
+        </div>
+        <p className="text-sm leading-relaxed text-gray-300">
+          <strong className="font-bold text-emerald-300">{item.recurrence || 1}</strong> sensor(es) independente(s) detectaram esta anomalia na mesma geolocalização nas últimas 24h.
+        </p>
+        <p className="mt-2 text-xs text-gray-400">
+          Sistema de prova criptográfica sem armazenamento de imagens (Privacy by Design)
+        </p>
       </div>
 
       {/* justificativa */}
-      <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-900/30 dark:bg-blue-900/20">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-          Justificativa da IA
+      <div className="rounded-xl border border-blue-700/50 bg-blue-950/40 px-4 py-3 shadow-inner">
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-blue-400">
+          Análise Automática
         </p>
-        <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{item.rationale}</p>
+        <p className="text-sm leading-relaxed text-gray-300">{item.rationale}</p>
       </div>
 
-      {/* metadados */}
-      <dl className="grid grid-cols-2 gap-3 text-sm">
+      {/* metadados premium */}
+      <dl className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt className="text-xs text-gray-400">Localização</dt>
-          <dd className="font-medium text-gray-800 dark:text-gray-200">{item.location}</dd>
+          <dt className="text-xs font-medium text-gray-500">Coordenadas</dt>
+          <dd className="mt-1 font-mono text-xs text-gray-300">{item.location}</dd>
         </div>
         <div>
-          <dt className="text-xs text-gray-400">IRV Score</dt>
-          <dd className="font-mono font-semibold text-blue-600 dark:text-blue-400">{item.irv}</dd>
+          <dt className="text-xs font-medium text-gray-500">IRV Score</dt>
+          <dd className="mt-1 font-mono text-lg font-bold text-blue-400">{item.irv}</dd>
         </div>
         <div className="col-span-2">
-          <dt className="mb-1 text-xs text-gray-400">Confiança da IA</dt>
-          <div className="flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          <dt className="mb-2 text-xs font-medium text-gray-500">Confiança do Modelo</dt>
+          <div className="flex items-center gap-3">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-800 shadow-inner">
               <div
-                className={`h-full rounded-full ${confidenceColor(item.confidence)} transition-all`}
+                className={`h-full rounded-full ${confidenceColor(item.confidence)} shadow-lg transition-all`}
                 style={{ width: `${item.confidence * 100}%` }}
               />
             </div>
-            <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <span className="font-mono text-sm font-bold text-gray-200">
               {(item.confidence * 100).toFixed(0)}%
             </span>
           </div>
         </div>
       </dl>
 
-      {/* ações */}
-      {item.status === 'Pendente' && (
+      {/* ações premium */}
+      {(item.status === 'Pendente' || item.status === 'PENDING') && (
         <div className="mt-auto grid grid-cols-2 gap-3">
           <button
             type="button"
             disabled={isUpdating}
             onClick={() => onDecision(item.id, 'approved')}
-            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] backdrop-blur-md transition-all hover:scale-[1.02] hover:shadow-[0_0_25px_rgba(16,185,129,0.7)] border border-emerald-400/50 disabled:opacity-50 disabled:hover:scale-100"
           >
-            Aprovar O.S.
+            ✓ Aprovar e Despachar O.S.
           </button>
           <button
             type="button"
             disabled={isUpdating}
             onClick={() => onDecision(item.id, 'rejected')}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="rounded-xl border border-rose-500/50 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-300 shadow-lg transition-all hover:scale-[1.02] hover:border-rose-500 hover:bg-rose-900/40 disabled:opacity-50 disabled:hover:scale-100"
           >
-            Rejeitar
+            ✕ Rejeitar Falso Positivo
           </button>
+        </div>
+      )}
+
+      {(item.status === 'Aprovado' || item.status === 'approved') && (
+        <div className="mt-auto rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-4 text-center shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+          <p className="text-sm font-medium text-emerald-400">
+            ✅ Ordem de Serviço Despachada para a Zeladoria (Integração SP156 simulada).
+          </p>
+        </div>
+      )}
+
+      {(item.status === 'Rejeitado' || item.status === 'rejected') && (
+        <div className="mt-auto rounded-xl border border-rose-500/30 bg-rose-950/40 p-4 text-center shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+          <p className="text-sm font-medium text-rose-400">
+            🚫 Incidente descartado e removido do cálculo de IRV.
+          </p>
         </div>
       )}
     </div>
@@ -168,6 +218,10 @@ export function TriageTableInner({ queue, onDecision, isUpdating }) {
   const [selected, setSelected] = useState(null)
   const [localQueue, setLocalQueue] = useState(queue)
 
+  useEffect(() => {
+    setLocalQueue(queue)
+  }, [queue])
+
   function handleDecision(id, status) {
     const statusLabel = status === 'approved' ? 'Aprovado' : 'Rejeitado'
     setLocalQueue((prev) => prev.map((i) => (i.id === id ? { ...i, status: statusLabel } : i)))
@@ -179,30 +233,30 @@ export function TriageTableInner({ queue, onDecision, isUpdating }) {
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
-      {/* tabela 60% */}
-      <div className="min-w-0 flex-[1.5] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      {/* tabela 60% premium */}
+      <div className="min-w-0 flex-[1.5] overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-lg">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-800">
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <tr className="border-b border-slate-800 bg-slate-950/50">
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   ID
                 </th>
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   Categoria
                 </th>
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   Localização
                 </th>
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   Confiança IA
                 </th>
-                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   Status
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+            <tbody className="divide-y divide-slate-800">
               {localQueue.map((item) => {
                 const isActive = selected?.id === item.id
                 return (
@@ -210,26 +264,26 @@ export function TriageTableInner({ queue, onDecision, isUpdating }) {
                     key={item.id}
                     onClick={() => setSelected(item)}
                     className={[
-                      'cursor-pointer transition-colors',
+                      'cursor-pointer transition-all',
                       isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                        ? 'bg-blue-950/50 ring-1 ring-blue-800/50'
+                        : 'hover:bg-slate-800/50',
                     ].join(' ')}
                   >
-                    <td className="whitespace-nowrap px-5 py-4 font-mono text-xs text-gray-500 dark:text-gray-400">
+                    <td className="whitespace-nowrap px-5 py-4 font-mono text-xs text-gray-500">
                       {item.id}
                     </td>
-                    <td className="px-5 py-4 text-sm text-gray-800 dark:text-gray-200">{item.category}</td>
-                    <td className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{item.location}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-gray-200">{item.category}</td>
+                    <td className="px-5 py-4 text-sm text-gray-400">{item.location}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-800 shadow-inner">
                           <div
-                            className={`h-full rounded-full ${confidenceColor(item.confidence)}`}
+                            className={`h-full rounded-full ${confidenceColor(item.confidence)} shadow-sm`}
                             style={{ width: `${item.confidence * 100}%` }}
                           />
                         </div>
-                        <span className="font-mono text-xs text-gray-600 dark:text-gray-400">
+                        <span className="font-mono text-xs font-semibold text-gray-400">
                           {(item.confidence * 100).toFixed(0)}%
                         </span>
                       </div>

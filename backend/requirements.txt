@@ -15,3 +15,5 @@ pydantic-settings==2.6.1
 # ── Utilitários ───────────────────────────────────────────
 python-dotenv==1.0.1
 httpx==0.28.1             # cliente HTTP assíncrono (testes e integrações)
+APScheduler==3.10.4       # agendamento de jobs (sync noturno Infosiga SP)
+opencv-python-headless==4.10.0.84  # captura de frames RTSP sem dependências GUI

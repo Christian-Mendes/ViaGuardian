@@ -1,3 +1,6 @@
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
+import { useMemo } from 'react'
+
 function intensityColor(intensity) {
   if (intensity >= 0.8) return '#dc2626' // vermelho - crítico
   if (intensity >= 0.6) return '#f97316' // laranja - alto
@@ -6,19 +9,40 @@ function intensityColor(intensity) {
 }
 
 export function HeatmapPanel({ points }) {
+  // Centro geográfico de São Paulo para focar a câmera inicial do mapa
+  const position = [-23.5505, -46.6333]
+
+  // Key estável para evitar remontagem desnecessária do MapContainer
+  const mapKey = useMemo(() => `map-${points.length}`, [points.length])
+
+  // Filtra pontos válidos uma única vez
+  const validPoints = useMemo(
+    () =>
+      points.filter(
+        (p) =>
+          p.lat &&
+          p.lon &&
+          typeof p.lat === 'number' &&
+          typeof p.lon === 'number' &&
+          !isNaN(p.lat) &&
+          !isNaN(p.lon)
+      ),
+    [points]
+  )
+
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-base font-bold text-gray-100">
             Mapa de Calor Preditivo
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Concentração de risco para motociclistas — fusão CFTV + telemetria + Infosiga SP.
+          <p className="mt-1 text-sm text-gray-400">
+            Concentração de risco interativa — navegue pelas vias para analisar os focos de anomalia.
           </p>
         </div>
 
-        <div className="hidden items-center gap-3 text-[11px] text-gray-500 sm:flex dark:text-gray-400">
+        <div className="hidden items-center gap-3 text-[11px] text-gray-400 sm:flex">
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
             Baixo
@@ -38,66 +62,52 @@ export function HeatmapPanel({ points }) {
         </div>
       </div>
 
-      <div className="relative h-[360px] overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950">
-        {/* grade simulando malha urbana */}
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <defs>
-            <pattern id="grid" width="6" height="6" patternUnits="userSpaceOnUse">
-              <path
-                d="M 6 0 L 0 0 0 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.15"
-                className="text-gray-300 dark:text-gray-700"
-              />
-            </pattern>
-            {points.map((p) => (
-              <radialGradient key={`g-${p.id}`} id={`heat-${p.id}`} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={intensityColor(p.intensity)} stopOpacity={0.75} />
-                <stop offset="55%" stopColor={intensityColor(p.intensity)} stopOpacity={0.25} />
-                <stop offset="100%" stopColor={intensityColor(p.intensity)} stopOpacity={0} />
-              </radialGradient>
-            ))}
-          </defs>
+      <div className="relative h-[360px] overflow-hidden rounded-xl border border-slate-700 z-0">
+        <MapContainer
+          key={mapKey}
+          center={position}
+          zoom={11}
+          scrollWheelZoom={false}
+          style={{ height: '100%', width: '100%', zIndex: 0, backgroundColor: '#0f172a' }}
+          whenReady={(map) => {
+            // Aguarda o mapa estar pronto antes de adicionar marcadores
+            setTimeout(() => map.target.invalidateSize(), 100)
+          }}
+        >
+          {/* TileLayer com tema escuro (Dark Matter) perfeito para dashboards */}
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          />
 
-          <rect width="100" height="100" fill="url(#grid)" />
-
-          {/* "vias" estilizadas */}
-          <path d="M0 55 L100 35" stroke="currentColor" strokeWidth="0.4" className="text-gray-300 dark:text-gray-700" />
-          <path d="M40 0 L55 100" stroke="currentColor" strokeWidth="0.4" className="text-gray-300 dark:text-gray-700" />
-          <path d="M0 80 L100 75" stroke="currentColor" strokeWidth="0.4" className="text-gray-300 dark:text-gray-700" />
-
-          {points.map((p) => (
-            <g key={p.id}>
-              <circle cx={p.x} cy={p.y} r={8 + p.intensity * 14} fill={`url(#heat-${p.id})`} />
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r={1.2}
-                fill={intensityColor(p.intensity)}
-                stroke="white"
-                strokeWidth="0.4"
-              />
-            </g>
+          {/* Renderiza apenas pontos válidos */}
+          {validPoints.map((p) => (
+            <CircleMarker
+              key={`marker-${p.id}`}
+              center={[p.lat, p.lon]}
+              pathOptions={{
+                color: intensityColor(p.intensity),
+                fillColor: intensityColor(p.intensity),
+                fillOpacity: 0.5,
+                weight: 1,
+              }}
+              radius={8 + p.intensity * 14}
+            >
+              {/* Tooltip interativo nativo do Leaflet que aparece ao passar o mouse */}
+              <Tooltip className="dark:bg-gray-800 dark:text-white dark:border-gray-700">
+                <div className="text-xs">
+                  <strong className="block text-sm">{p.label}</strong>
+                  <span className="text-gray-400 mt-1 block">
+                    IRV Score: {(p.intensity * 100).toFixed(1)}
+                  </span>
+                </div>
+              </Tooltip>
+            </CircleMarker>
           ))}
-        </svg>
+        </MapContainer>
 
-        {/* labels HTML */}
-        {points.map((p) => (
-          <div
-            key={`lbl-${p.id}`}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-[140%] whitespace-nowrap rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-medium text-gray-700 shadow-sm backdrop-blur dark:bg-gray-800/90 dark:text-gray-200"
-            style={{ left: `${p.x}%`, top: `${p.y}%` }}
-          >
-            {p.label}
-            <span className="ml-1.5 font-mono text-[9px] text-gray-500 dark:text-gray-400">
-              {(p.intensity * 100).toFixed(0)}
-            </span>
-          </div>
-        ))}
-
-        <div className="absolute bottom-3 right-3 rounded-md bg-white/90 px-2.5 py-1 font-mono text-[10px] text-gray-500 shadow-sm backdrop-blur dark:bg-gray-800/90 dark:text-gray-400">
-          PostGIS · R-Tree · 12m radius
+        <div className="absolute bottom-5 right-3 rounded-md bg-white/90 px-2.5 py-1 font-mono text-[10px] text-gray-500 shadow-sm backdrop-blur dark:bg-gray-800/90 dark:text-gray-400" style={{ zIndex: 400 }}>
+          PostGIS · React Leaflet
         </div>
       </div>
     </section>
