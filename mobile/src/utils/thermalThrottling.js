@@ -118,9 +118,15 @@ class ThermalThrottlingController {
 
   /**
    * Atualiza o estado térmico e notifica listeners.
-   * 
-   * @param {string} newState - Novo estado térmico
+   * Alias público: updateThermalState() — use este a partir de contextos externos,
+   * como o hook useDeviceTemperature do ActiveDrivingScreen.
+   *
+   * @param {string} newState - Novo estado térmico (ThermalState enum)
    */
+  updateThermalState(newState) {
+    this._updateThermalState(newState)
+  }
+
   _updateThermalState(newState) {
     if (this.currentState === newState) return
 
