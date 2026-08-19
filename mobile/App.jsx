@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, PermissionsAndroid, Platform, StatusBar } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { Camera } from 'react-native-vision-camera'
 
 import { useTelemetryStore, AppState } from './src/store/telemetryStore'
 import { useGpsWatcher } from './src/hooks/useGpsWatcher'
@@ -30,20 +31,31 @@ function usePermissions() {
   useEffect(() => {
     if (Platform.OS !== 'android') return
 
-    async function requestAll() {
-      const results = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        // Vibração não requer permissão explícita (VIBRATE está no manifest)
-      ])
-
-      const allGranted = Object.values(results).every(
-        (r) => r === PermissionsAndroid.RESULTS.GRANTED,
-      )
-      setGranted(allGranted)
+    async function checkAndSetupPermissions() {
+      // 1. Checa o status atual da câmera
+      let camStatus = Camera.getCameraPermissionStatus()
+      
+      // Se não tiver permissão, solicita
+      if (camStatus !== 'granted') {
+        camStatus = await Camera.requestCameraPermission()
+      }
+      
+      // 2. Checa o status atual do GPS
+      let locGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION)
+      
+      // Se não tiver permissão, solicita
+      if (!locGranted) {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        )
+        locGranted = result === PermissionsAndroid.RESULTS.GRANTED
+      }
+      
+      // 3. Libera apenas se as strings exatas baterem
+      setGranted(camStatus === 'granted' && locGranted)
     }
 
-    requestAll()
+    checkAndSetupPermissions()
   }, [])
 
   return granted
@@ -79,7 +91,8 @@ export default function App() {
     )
   }
 
-  const isDriving = appState === AppState.DRIVING
+  const FORCE_DRIVING_MODE = true // 🛑 BYPASS PARA TIRAR PRINTS (LEMBRE-SE DE APAGAR DEPOIS!)
+  const isDriving = appState === AppState.DRIVING || FORCE_DRIVING_MODE
 
   return (
     <SafeAreaProvider>

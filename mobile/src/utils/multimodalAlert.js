@@ -24,12 +24,19 @@ let _ttsReady = false
 
 export async function initTts() {
   try {
-    await Tts.setDefaultLanguage('pt-BR')
-    await Tts.setDefaultRate(0.52)   // velocidade natural para alertas
-    await Tts.setDefaultPitch(1.05)
-    _ttsReady = true
-  } catch (e) {
-    console.warn('[ViaGuardian TTS] Falha na inicialização:', e)
+    await Tts.getInitStatus();
+    await Tts.setDefaultLanguage('pt-BR');
+    await Tts.setDefaultRate(0.52);   // velocidade natural para alertas
+    await Tts.setDefaultPitch(1.05);
+    _ttsReady = true;
+    console.log('[ViaGuardian TTS] Inicializado e pronto para operar!');
+  } catch (error) {
+    if (error.code === 'no_engine') {
+      console.warn('[ViaGuardian TTS] Nenhuma engine encontrada. Solicitando instalação...');
+      Tts.requestInstallEngine();
+    } else {
+      console.warn('[ViaGuardian TTS] Falha na inicialização:', error);
+    }
   }
 }
 

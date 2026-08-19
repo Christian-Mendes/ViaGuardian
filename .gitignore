@@ -44,6 +44,9 @@ env/
 
 # Dependências Mobile / Expo (se houver)
 .expo/
-android/app/build/
-ios/Pods/
-ios/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/build/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/DerivedData/
